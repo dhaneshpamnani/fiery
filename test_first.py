@@ -160,11 +160,12 @@ def create_visualization(image, output, cfg, sample_token, scene_name, sample_nu
     return vis_path
 
 
-def run_inference_on_validation_set(checkpoint_path, dataroot, version):
+def run_inference_on_validation_set(checkpoint_path, dataroot, version, save_results=False):
     """Main function to run inference on validation set"""
     print(f"Loading checkpoint from: {checkpoint_path}")
     print(f"Using dataroot: {dataroot}")
     print(f"Dataset version: {version}")
+    print(f"Save results: {save_results}")
     
     # Load model
     trainer = TrainingModule.load_from_checkpoint(checkpoint_path, strict=True)
@@ -182,9 +183,13 @@ def run_inference_on_validation_set(checkpoint_path, dataroot, version):
     cfg.DATASET.DATAROOT = dataroot
     cfg.DATASET.VERSION = version
 
-    # Create results folder structure
-    base_dir, version_dir = create_results_folder_structure(version)
-    print(f"Results will be saved to: {base_dir}")
+    # Create results folder structure only if saving is enabled
+    base_dir, version_dir = None, None
+    if save_results:
+        base_dir, version_dir = create_results_folder_structure(version)
+        print(f"Results will be saved to: {base_dir}")
+    else:
+        print("Results saving disabled - no files will be saved to disk")
 
     # Prepare data loaders (modify to remove 10-sample limitation for mini)
     _, valloader = prepare_dataloaders(cfg)
@@ -284,11 +289,12 @@ def run_inference_on_validation_set(checkpoint_path, dataroot, version):
             # Measure inference time
             inference_time = time.time() - sample_start_time
             
-            # Save model outputs
-            sample_dir = save_model_outputs(output, sample_token, scene_name, sample_number, version_dir)
-            
-            # Create and save visualization
-            vis_path = create_visualization(single_image, output, cfg, sample_token, scene_name, sample_number, version_dir)
+            # Save model outputs and visualization only if saving is enabled
+            sample_dir = None
+            vis_path = None
+            if save_results and version_dir is not None:
+                sample_dir = save_model_outputs(output, sample_token, scene_name, sample_number, version_dir)
+                vis_path = create_visualization(single_image, output, cfg, sample_token, scene_name, sample_number, version_dir)
             
             # Update timing data
             timing_data['total_samples'] += 1
@@ -302,9 +308,10 @@ def run_inference_on_validation_set(checkpoint_path, dataroot, version):
             timing_data['scene_times'][scene_name] += inference_time
             timing_data['samples_per_scene'][scene_name] += 1
             
+            # Display timing information for each forward pass
+            save_info = f" - Saved to: {sample_dir}" if sample_dir else " - No saving"
             print(f"Processed {scene_name} sample {sample_number:03d}: {sample_token} - "
-                  f"Inference time: {inference_time:.4f}s - "
-                  f"Saved to: {sample_dir}")
+                  f"Inference time: {inference_time:.4f}s{save_info}")
 
         batch_time = time.time() - batch_start_time
         print(f"Completed batch {batch_idx + 1}/{len(valloader)} in {batch_time:.2f}s")
@@ -333,9 +340,12 @@ def run_inference_on_validation_set(checkpoint_path, dataroot, version):
         }
     }
     
-    timing_file = version_dir / "timing_log.json"
-    with open(timing_file, 'w') as f:
-        json.dump(timing_log, f, indent=2)
+    # Save timing log only if saving is enabled
+    timing_file = None
+    if save_results and version_dir is not None:
+        timing_file = version_dir / "timing_log.json"
+        with open(timing_file, 'w') as f:
+            json.dump(timing_log, f, indent=2)
     
     # Print summary
     print("\n" + "="*60)
@@ -349,8 +359,11 @@ def run_inference_on_validation_set(checkpoint_path, dataroot, version):
     print(f"Min inference time: {np.min(timing_data['inference_times']):.4f}s")
     print(f"Max inference time: {np.max(timing_data['inference_times']):.4f}s")
     print(f"Std deviation: {np.std(timing_data['inference_times']):.4f}s")
-    print(f"Results saved to: {base_dir}")
-    print(f"Timing log saved to: {timing_file}")
+    if save_results and base_dir is not None:
+        print(f"Results saved to: {base_dir}")
+        print(f"Timing log saved to: {timing_file}")
+    else:
+        print("No results saved to disk (--results flag not set)")
     print("="*60)
 
 
@@ -360,6 +373,7 @@ def main():
     parser.add_argument('--dataroot', required=True, type=str, help='path to the dataset')
     parser.add_argument('--version', required=True, type=str, choices=['mini', 'trainval'],
                         help='dataset version')
+    parser.add_argument('--results', action='store_true', help='save results to disk (default: False)')
     
     args = parser.parse_args()
     
@@ -367,7 +381,7 @@ def main():
     global cv2
     import cv2
     
-    run_inference_on_validation_set(args.checkpoint, args.dataroot, args.version)
+    run_inference_on_validation_set(args.checkpoint, args.dataroot, args.version, args.results)
 
 
 if __name__ == '__main__':
