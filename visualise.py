@@ -77,13 +77,23 @@ def plot_prediction(image, output, cfg):
     bev_height, bev_width = vis_image.shape[:2]
     ego_x, ego_y = bev_width // 2, bev_height // 2
     
-    # Draw a red circle to mark ego position
-    circle = plt.Circle((ego_x, ego_y), 3, color='red', fill=False, linewidth=1)
-    ax.add_patch(circle)
+    # Draw a car-like rectangle to mark ego position
+    # Car dimensions: 6x3 pixels (length x width)
+    car_length, car_width = 6, 3
+    car_x1 = ego_x - car_length // 2
+    car_y1 = ego_y - car_width // 2
+    car_x2 = ego_x + car_length // 2
+    car_y2 = ego_y + car_width // 2
     
-    # Draw a cross at ego position for better visibility
-    plt.plot([ego_x-2, ego_x+2], [ego_y, ego_y], 'r-', linewidth=3)
-    plt.plot([ego_x, ego_x], [ego_y-2, ego_y+2], 'r-', linewidth=3)
+    # Draw red filled rectangle (car body)
+    car_rect = plt.Rectangle((car_x1, car_y1), car_length, car_width, 
+                           color='red', fill=True, alpha=0.8)
+    ax.add_patch(car_rect)
+    
+    # Draw black outline rectangle
+    car_outline = plt.Rectangle((car_x1, car_y1), car_length, car_width, 
+                              color='black', fill=False, linewidth=1)
+    ax.add_patch(car_outline)
     
     plt.axis('off')
 
