@@ -432,7 +432,8 @@ def prepare_dataloaders(cfg, return_dataset=False):
 
     if cfg.DATASET.NAME == 'nuscenes':
         # 28130 train and 6019 val
-        dataroot = os.path.join(cfg.DATASET.DATAROOT, version)
+        # dataroot = os.path.join(cfg.DATASET.DATAROOT, version)
+        dataroot = cfg.DATASET.DATAROOT
         nusc = NuScenes(version='v1.0-{}'.format(cfg.DATASET.VERSION), dataroot=dataroot, verbose=False)
     elif cfg.DATASET.NAME == 'lyft':
         # train contains 22680 samples
@@ -445,9 +446,10 @@ def prepare_dataloaders(cfg, return_dataset=False):
     traindata = FuturePredictionDataset(nusc, train_on_training_data, cfg)
     valdata = FuturePredictionDataset(nusc, False, cfg)
 
-    if cfg.DATASET.VERSION == 'mini':
-        traindata.indices = traindata.indices[:10]
-        valdata.indices = valdata.indices[:10]
+    # Note: Removed 10-sample limitation for mini dataset to use full mini dataset
+    # if cfg.DATASET.VERSION == 'mini':
+    #     traindata.indices = traindata.indices[:10]
+    #     valdata.indices = valdata.indices[:10]
 
     nworkers = cfg.N_WORKERS
     trainloader = torch.utils.data.DataLoader(

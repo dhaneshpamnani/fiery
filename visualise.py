@@ -1,6 +1,9 @@
 import os
 from argparse import ArgumentParser
 from glob import glob
+import matplotlib
+matplotlib.use('Agg')  # Use non-GUI backend
+
 
 import cv2
 import numpy as np
@@ -34,7 +37,7 @@ def plot_prediction(image, output, cfg):
         path = matched_centers[instance_id]
         for t in range(len(path) - 1):
             color = instance_colours[instance_id].tolist()
-            cv2.line(trajectory_img, tuple(path[t]), tuple(path[t + 1]),
+            cv2.line(trajectory_img, tuple(map(int, path[t])), tuple(map(int, path[t + 1])),
                      color, 4)
 
     # Overlay arrows
@@ -69,6 +72,19 @@ def plot_prediction(image, output, cfg):
 
     ax = plt.subplot(gs[:, 3])
     plt.imshow(make_contour(vis_image[::-1, ::-1]))
+    
+    # Mark ego position (center of BEV map)
+    bev_height, bev_width = vis_image.shape[:2]
+    ego_x, ego_y = bev_width // 2, bev_height // 2
+    
+    # Draw a red circle to mark ego position
+    circle = plt.Circle((ego_x, ego_y), 3, color='red', fill=False, linewidth=1)
+    ax.add_patch(circle)
+    
+    # Draw a cross at ego position for better visibility
+    plt.plot([ego_x-2, ego_x+2], [ego_y, ego_y], 'r-', linewidth=3)
+    plt.plot([ego_x, ego_x], [ego_y-2, ego_y+2], 'r-', linewidth=3)
+    
     plt.axis('off')
 
     plt.draw()
